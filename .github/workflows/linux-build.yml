@@ -1,0 +1,97 @@
+name: Build Linux
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+concurrency:
+  group: linux-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Dipendenze di sistema (cv2 / Tk / FUSE per AppImage / ffmpeg)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 \
+          tk libfuse2 ffmpeg
+
+    - name: Dipendenze Python
+      run: |
+        python -m pip install --upgrade pip
+        # llama-cpp-python: prova la wheel manylinux precompilata (indice CPU di abetlen),
+        # altrimenti compila da sorgente (NATIVO x86_64 -> nessun problema OpenSSL/emulazione).
+        pip install --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu "llama-cpp-python==0.3.28"
+        pip install -r requirements.txt
+        pip install pyinstaller cython
+
+    - name: Build protected app (Cython + PyInstaller)
+      run: |
+        # Compila i moduli core in binari nativi (.so) e impacchetta: codice non decompilabile.
+        python build_protected.py
+
+    - name: Pacchetto AppImage
+      run: |
+        set -e
+        APPDIR=AppDir
+        rm -rf "$APPDIR"; mkdir -p "$APPDIR/usr/bin"
+        cp -r dist/Datarium/* "$APPDIR/usr/bin/"
+
+        # Icona: converto icon.ico -> png (AppImage usa png)
+        python -c "from PIL import Image; Image.open('icon.ico').save('datarium.png')"
+        cp datarium.png "$APPDIR/datarium.png"
+
+        # .desktop
+        cat > "$APPDIR/datarium.desktop" <<'EOF'
+        [Desktop Entry]
+        Type=Application
+        Name=Datarium
+        Exec=Datarium
+        Icon=datarium
+        Categories=Utility;
+        Terminal=false
+        EOF
+
+        # AppRun -> lancia il binario PyInstaller (con _internal accanto)
+        cat > "$APPDIR/AppRun" <<'EOF'
+        #!/bin/bash
+        HERE="$(dirname "$(readlink -f "${0}")")"
+        exec "$HERE/usr/bin/Datarium" "$@"
+        EOF
+        chmod +x "$APPDIR/AppRun"
+
+        # appimagetool (eseguito con --appimage-extract-and-run per evitare problemi FUSE)
+        wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+        chmod +x appimagetool
+        ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APPDIR" Datarium-x86_64.AppImage
+        ls -la Datarium-x86_64.AppImage
+
+    - name: Pacchetto tar.gz (riserva)
+      run: |
+        cd dist
+        tar -czf ../Datarium-Linux-x86_64.tar.gz Datarium
+
+    - name: Upload AppImage
+      uses: actions/upload-artifact@v4
+      with:
+        name: Datarium-Linux-AppImage
+        path: Datarium-x86_64.AppImage
+
+    - name: Upload tar.gz
+      uses: actions/upload-artifact@v4
+      with:
+        name: Datarium-Linux-targz
+        path: Datarium-Linux-x86_64.tar.gz

@@ -79,19 +79,8 @@ jobs:
         ARCH=x86_64 ./appimagetool --appimage-extract-and-run "$APPDIR" Datarium-x86_64.AppImage
         ls -la Datarium-x86_64.AppImage
 
-    - name: Pacchetto tar.gz (riserva)
-      run: |
-        cd dist
-        tar -czf ../Datarium-Linux-x86_64.tar.gz Datarium
-
-    - name: Upload AppImage
+    - name: Upload AppImage (installer unico per tutte le distro)
       uses: actions/upload-artifact@v4
       with:
         name: Datarium-Linux-AppImage
         path: Datarium-x86_64.AppImage
-
-    - name: Upload tar.gz
-      uses: actions/upload-artifact@v4
-      with:
-        name: Datarium-Linux-targz
-        path: Datarium-Linux-x86_64.tar.gz

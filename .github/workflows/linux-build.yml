@@ -38,7 +38,23 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller cython
 
+    - name: FFmpeg incluso (build statica Martin Riedl, hash verificato)
+      run: |
+        set -e
+        URL=https://ffmpeg.martin-riedl.de/download/linux/amd64/1789931100_9.0.2/ffmpeg.zip
+        SHA=fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f
+        curl -fsSL --retry 3 -o "$RUNNER_TEMP/ffmpeg.zip" "$URL"
+        echo "$SHA  $RUNNER_TEMP/ffmpeg.zip" | sha256sum -c -
+        rm -rf ffmpeg && mkdir ffmpeg
+        unzip -o "$RUNNER_TEMP/ffmpeg.zip" -d ffmpeg
+        chmod +x ffmpeg/ffmpeg
+        cp ffmpeg_LICENSE.txt ffmpeg/LICENSE.txt
+        cp ffmpeg_README.txt ffmpeg/README.txt
+        ffmpeg/ffmpeg -hide_banner -encoders | grep -E "libx264|dnxhd"
+
     - name: Build protected app (Cython + PyInstaller)
+      env:
+        DATARIUM_REQUIRE_FFMPEG: "1"
       run: |
         # Compila i moduli core in binari nativi (.so) e impacchetta: codice non decompilabile.
         python build_protected.py

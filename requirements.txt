@@ -2,10 +2,13 @@ customtkinter
 Pillow
 llama-cpp-python
 huggingface-hub
-pymupdf
+# PDF: reportlab (report) + pypdf (lettura testo), entrambi BSD. NON usare pymupdf (AGPL-3.0).
+reportlab
+pypdf
 python-docx
 PyJWT
 cryptography
 xxhash
-pillow-heif
+# HEIC/HEIF in sola lettura. NON usare pillow-heif: include l'encoder x265 (GPL-2.0).
+pi-heif
 opencv-contrib-python

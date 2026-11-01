@@ -38,7 +38,9 @@ jobs:
         # GGML_NATIVE=OFF: istruzioni CPU di base (AVX2) e non quelle del runner (AVX-512),
         # altrimenti l'app si blocca sui processori dei clienti.
         CMAKE_ARGS="-DGGML_VULKAN=on -DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python "llama-cpp-python==0.3.28"
-        python -c "import llama_cpp; assert llama_cpp.llama_supports_gpu_offload(), 'build Vulkan mancante'"
+        # Il runner non ha GPU (llama_supports_gpu_offload e' falso): si controlla che la
+        # libreria Vulkan sia stata compilata.
+        python -c "import llama_cpp, os, glob; d=os.path.join(os.path.dirname(llama_cpp.__file__), 'lib'); assert glob.glob(os.path.join(d, '*ggml-vulkan*')), 'build Vulkan mancante: ' + str(os.listdir(d))"
         pip install -r requirements.txt
         pip install pyinstaller cython
 
